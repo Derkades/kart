@@ -1,0 +1,3 @@
+[submodule "hoverboard-firmware-hack-FOC"]
+	path = hoverboard-firmware-hack-FOC
+	url = ./hoverboard-firmware-hack-FOC
