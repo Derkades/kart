@@ -148,12 +148,12 @@ void sendSerial() {
     #endif
 
     const uint32_t accelRaw = analogRead(PIN_ACCEL_INPUT);
-
     const int16_t accel = constrain(map(accelRaw, INPUT_ACCEL_MIN, INPUT_ACCEL_MAX, 0, 1000), 0, 1000);
+
+    int16_t speedCmd = 0;
 
     #ifdef PIN_REVERSE_INPUT
     const bool reverse = digitalRead(PIN_REVERSE_INPUT);
-    int16_t speedCmd;
     if (lastSpeedFeedback < millis() - 500) {
         // Error
         Serial.println("error");
@@ -190,11 +190,14 @@ void sendSerial() {
                 }
             }
         }
-        speedCmd = constrain(speedCmd, -SPEED_BACKWARD_MAX, SPEED_FORWARD_MAX);
     }
     #else
-    const int16_t speedCmd = constrain(accel - brake, -SPEED_BACKWARD_MAX, SPEED_FORWARD_MAX);
+    speedCmd = brake
+            ? -map(brake, 0, 1000, 0, SPEED_BACKWARD_MAX)
+            : map(accel, 0, 1000, 0, SPEED_FORWARD_MAX);
     #endif
+
+    speedCmd = constrain(speedCmd, -SPEED_BACKWARD_MAX, SPEED_FORWARD_MAX);
 
     flashInterval = map(1000 - abs(speedCmd), 0, 1000, 25, 250);
 
