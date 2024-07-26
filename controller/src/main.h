@@ -17,7 +17,7 @@
 // Calibrate analog inputs
 #define INPUT_DEBUG
 #define INPUT_ACCEL_MIN     300
-#define INPUT_ACCEL_MAX     800
+#define INPUT_ACCEL_MAX     670
 #define INPUT_BRAKE_MIN     300
 #define INPUT_BRAKE_MAX     800
 #define INPUT_BALANCE_MIN   3
@@ -25,7 +25,7 @@
 
 // Safety limit
 #define SPEED_FORWARD_MAX   1000
-#define SPEED_BACKWARD_MAX  1000
+#define SPEED_BACKWARD_MAX  500
 
 // Hoverboard firmware has 5 ms loop, so any faster does not make sense.
 #define SEND_INTERVAL       50
