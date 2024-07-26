@@ -14,7 +14,7 @@ class Controller {
         int16_t feedbackDC_CURR; // total DC link current A * 100
 
         bool working() {
-            return lastWorking + CONTROL_SERIAL_WORKING_TIMEOUT_MS > millis();
+            return lastWorking && (lastWorking + CONTROL_SERIAL_WORKING_TIMEOUT_MS > millis());
         }
 };
 
@@ -39,7 +39,7 @@ bool recv(Controller &controller, const char *param, int16_t *value_p) {
 
     while (start + CONTROL_SERIAL_TIMEOUT_MS > millis()) {
         // Wait for serial to be available
-        if (!Serial.available()) {
+        if (!controller.serial.available()) {
             continue;
         }
 
@@ -47,9 +47,9 @@ bool recv(Controller &controller, const char *param, int16_t *value_p) {
         size_t size = controller.serial.readBytesUntil('\n', (uint8_t*) buf, CONTROL_SERIAL_RECV_BUF_SIZE - 1);
         buf[size] = '\0';
 
-        #ifdef CONTROL_SERIAL_RX_DEBUG
-        Serial.print("recv:");
-        Serial.println(recvBuf);
+        #ifdef CONTROL_SERIAL_RX_DEBUG_RAW
+        Serial.print("\nRX_raw:");
+        Serial.println(buf);
         #endif
 
         // This line contains a value reponse?
@@ -60,12 +60,12 @@ bool recv(Controller &controller, const char *param, int16_t *value_p) {
             // Extract parameter name and value
             char *startQuote = strstr(buf, "\"");
             if (!startQuote) {
-                Serial.println("err startQuote");
+                Serial.println(" RX_err_startQuote");
                 continue;
             }
             char *endQuote = strstr(startQuote + 1, "\"");
             if (!endQuote) {
-                Serial.println("err endQuote");
+                Serial.println(" RX_err_endQuote");
                 continue;
             }
             memcpy(name, startQuote + 1, MIN(endQuote - startQuote - 1, 31));
@@ -73,29 +73,29 @@ bool recv(Controller &controller, const char *param, int16_t *value_p) {
 
             char *startValue = strstr(buf, "value:");
             if (!startValue) {
-                Serial.println("err startValue");
+                Serial.println(" RX_err_startValue");
                 continue;
             }
 
             value = (int16_t) strtol(startValue + strlen("value:"), NULL, 10);
 
             #ifdef CONTROL_SERIAL_RX_DEBUG
-            Serial.print("name:");
+            Serial.print(" RX_name:");
             Serial.print(name);
-            Serial.print(" value:");
+            Serial.print(" RX_val:");
             Serial.print(value);
             #endif
 
             // Is this the value we were looking for?
             if (strcmp(name, param) != 0) {
                 #ifdef CONTROL_SERIAL_RX_DEBUG
-                Serial.println(" IGNORE");
+                Serial.print(" RX_ignore");
                 #endif
                 continue;
             }
 
             #ifdef CONTROL_SERIAL_RX_DEBUG
-            Serial.println(" OK");
+            Serial.print(" RX_ok");
             #endif
 
             if (value_p != NULL) {
@@ -108,24 +108,32 @@ bool recv(Controller &controller, const char *param, int16_t *value_p) {
         }
     }
 
+    #ifdef CONTROL_SERIAL_RX_DEBUG
+    Serial.print(" RX_timeout");
+    #endif
     return false; // timeout
+}
+
+void send(Controller &controller, char *command) {
+    #ifdef CONTROL_SERIAL_TX_DEBUG
+    Serial.print("send ");
+    Serial.print(controller.name);
+    Serial.print(": ");
+    Serial.write((uint8_t*) command, strlen(command) - 1);  // send command to debug serial, excluding newline
+    #endif
+
+    controller.serial.write(command);
 }
 
 bool set(Controller &controller, const char *param, const int16_t value) {
     char command[32];
     snprintf(command, 32, "$SET %s %i\n", param, value);
 
-    #ifdef CONTROL_SERIAL_TX_DEBUG
-    Serial.print("send ");
-    Serial.print(controller.name);
-    Serial.print(": ");
-    Serial.write((uint8_t*) command, strlen(command) - 1);
-    controller.serial.write(command);
-    #endif
+    send(controller, command);
 
     bool success = recv(controller, param, NULL);
     #ifdef CONTROL_SERIAL_TX_DEBUG
-    Serial.println(success ? " OK" : "FAIL");
+    Serial.println(success ? " OK" : " FAIL");
     #endif
     return success;
 }
@@ -134,17 +142,11 @@ bool get(Controller &controller, const char *param, int16_t *value_p) {
     char command[32];
     snprintf(command, 32, "$GET %s\n", param);
 
-    #ifdef CONTROL_SERIAL_TX_DEBUG
-    Serial.print("send ");
-    Serial.print(controller.name);
-    Serial.print(": ");
-    Serial.write((uint8_t*) command, strlen(command) - 1);
-    controller.serial.write(command);
-    #endif
+    send(controller, command);
 
     bool success = recv(controller, param, value_p);
     #ifdef CONTROL_SERIAL_TX_DEBUG
-    Serial.println(success ? " OK" : "FAIL");
+    Serial.println(success ? " OK" : " FAIL");
     #endif
     return success;
 }
@@ -211,9 +213,9 @@ void drawHome() {
 
     // Battery, or error message if one of the two controllers can't be reached
     if (!cR.working()) {
-        strcpy(batText, "no comms 1");
+        strcpy(batText, "err rear");
     } else if (!cF.working()) {
-        strcpy(batText, "no comms 2");
+        strcpy(batText, "err front");
     } else {
         const float batVoltage = 1e-2f * voltage;
         const uint8_t batPercent = (uint8_t) ((voltage - BAT_VOLT_EMPTY) * 100 / (BAT_VOLT_FULL - BAT_VOLT_EMPTY));
@@ -425,34 +427,34 @@ void loopSave() {
     // TODO set VLT/TRQ mode
 
     if ((changed & CHANGED_DRIVE_FRONT)) {
-        if (set(cF, P_CTRL_TYP, drive)) changed ^= CHANGED_DRIVE_FRONT;
+        if (!cF.working() || set(cF, P_CTRL_TYP, drive)) changed ^= CHANGED_DRIVE_FRONT;
         return;
     } else if ((changed & CHANGED_DRIVE_REAR)) {
-        if (set(cR, P_CTRL_TYP, drive)) changed ^= CHANGED_DRIVE_REAR;
+        if (!cR.working() || set(cR, P_CTRL_TYP, drive)) changed ^= CHANGED_DRIVE_REAR;
         return;
     } else if ((changed & CHANGED_WEAK_ENA_FRONT)) {
-        if (set(cF, P_FI_WEAK_ENA, fieldWeakEnabled)) changed ^= CHANGED_WEAK_ENA_FRONT;
+        if (!cF.working() || set(cF, P_FI_WEAK_ENA, fieldWeakEnabled)) changed ^= CHANGED_WEAK_ENA_FRONT;
         return;
     } else if ((changed & CHANGED_WEAK_ENA_REAR)) {
-        if (set(cR, P_FI_WEAK_ENA, fieldWeakEnabled)) changed ^= CHANGED_WEAK_ENA_REAR;
+        if (!cR.working() || set(cR, P_FI_WEAK_ENA, fieldWeakEnabled)) changed ^= CHANGED_WEAK_ENA_REAR;
         return;
-    } else if (fieldWeakEnabled && (changed & CHANGED_WEAK_FRONT) ) {
-        if (set(cF, P_FI_WEAK_MAX, fieldWeakCurrent)) changed ^= CHANGED_WEAK_FRONT;
+    } else if ((changed & CHANGED_WEAK_FRONT) ) {
+        if (!cF.working() || set(cF, P_FI_WEAK_MAX, fieldWeakCurrent)) changed ^= CHANGED_WEAK_FRONT;
         return;
-    } else if (fieldWeakEnabled && (changed & CHANGED_WEAK_REAR)) {
-        if (set(cR, P_FI_WEAK_MAX, fieldWeakCurrent)) changed ^= CHANGED_WEAK_REAR;
+    } else if ((changed & CHANGED_WEAK_REAR)) {
+        if (!cR.working() || set(cR, P_FI_WEAK_MAX, fieldWeakCurrent)) changed ^= CHANGED_WEAK_REAR;
         return;
-    } else if (fieldWeakEnabled && (changed & CHANGED_ANGLE_FRONT)) {
-        if (set(cF, P_PHA_ADV_MAX, phaseAdvanceAngle)) changed ^= CHANGED_ANGLE_FRONT;
+    } else if ((changed & CHANGED_ANGLE_FRONT)) {
+        if (!cF.working() || set(cF, P_PHA_ADV_MAX, phaseAdvanceAngle)) changed ^= CHANGED_ANGLE_FRONT;
         return;
-    } else if (fieldWeakEnabled && (changed & CHANGED_ANGLE_REAR)) {
-        if (set(cR, P_PHA_ADV_MAX, phaseAdvanceAngle)) changed ^= CHANGED_ANGLE_REAR;
+    } else if ((changed & CHANGED_ANGLE_REAR)) {
+        if (!cR.working() || set(cR, P_PHA_ADV_MAX, phaseAdvanceAngle)) changed ^= CHANGED_ANGLE_REAR;
         return;
     } else if ((changed & CHANGED_CURRENT_FRONT)) {
-        if (set(cF, P_I_MOT_MAX, motorMaxCurrentFront) || !cF.working()) changed ^= CHANGED_CURRENT_FRONT;
+        if (!cF.working() || set(cF, P_I_MOT_MAX, motorMaxCurrentFront)) changed ^= CHANGED_CURRENT_FRONT;
         return;
     } else if ((changed & CHANGED_CURRENT_REAR) ) {
-        if (set(cR, P_I_MOT_MAX, motorMaxCurrentRear) || !cR.working()) changed ^= CHANGED_CURRENT_REAR;
+        if (!cR.working() || set(cR, P_I_MOT_MAX, motorMaxCurrentRear)) changed ^= CHANGED_CURRENT_REAR;
         return;
     } else if (changed == 0) {
         // All changes saved, go to home menu
