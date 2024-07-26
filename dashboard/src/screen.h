@@ -4,9 +4,9 @@
 #include <U8g2lib.h>
 
 // Font parameters
-#define FONT_STD  u8g2_font_crox3c_mf // https://github.com/olikraus/u8g2/wiki/fntgrpcrox#crox3h
+#define FONT_STD  u8g2_font_crox3c_mf // https://github.com/olikraus/u8g2/wiki/fntgrpcrox#crox3c
 #define FONT_ICON u8g2_font_twelvedings_t_all // https://github.com/olikraus/u8g2/wiki/fntgrpgeoff#twelvedings
-#define CH (12+5) // height of character
+#define CH 17 // height of character, but slightly less
 #define CW 12 // width of character
 
 // Screen parameters
