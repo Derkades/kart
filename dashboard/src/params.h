@@ -30,12 +30,12 @@ struct param {
     int16_t value;
 };
 
-void param_set(param &p, int16_t value) {
+inline void param_set(param &p, int16_t value) {
     p.dirty = true;
     p.value = value;
 }
 
-int16_t param_get(const param &p) {
+inline int16_t param_get(const param &p) {
     return p.value;
 }
 
