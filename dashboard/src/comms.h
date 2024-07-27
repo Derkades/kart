@@ -1,7 +1,6 @@
 #ifndef COMMS_H
 #define COMMS_H
 
-#include <Arduino.h>
 #include "controller.h"
 
 extern bool set(Controller &controller, const char *param, const int16_t value);

@@ -5,60 +5,8 @@ Bounce2::Button actionButton = Bounce2::Button();
 
 static Menu menu = (Menu) ((int) MENU_COUNT - 1); // initial state last menu means first menu is actual first state
 
-// Setting state
-// static Drive drive = DRIVE_FOC;
-static int16_t ctrlMod = CTRL_MOD_VLT;
-static int16_t ctrlTyp = CTRL_TYP_SIN;
-static int16_t motorMaxCurrentFront = 5;
-static int16_t motorMaxCurrentRear = 5;
-static int16_t fieldWeakEnabled = 0;
-static int16_t phaseAdvanceAngle = 0;
-static int16_t fieldWeakCurrent = 0;
-// static uint16_t changed;
-
 static Controller cF("front", PA3, PA2); // front motor controller, USART2
 static Controller cR("rear", PA10, PA9); // rear motor controller, USART1
-
-// Must be kept in sync with changes array
-#define CHANGE_TYPE_FRONT       0
-#define CHANGE_TYPE_REAR        1
-#define CHANGE_MODE_FRONT       2
-#define CHANGE_MODE_REAR        3
-#define CHANGE_CURRENT_FRONT    4
-#define CHANGE_CURRENT_REAR     5
-#define CHANGE_WEAK_ENA_FRONT   6
-#define CHANGE_WEAK_ENA_REAR    7
-#define CHANGE_ANGLE_FRONT      8
-#define CHANGE_ANGLE_REAR       9
-#define CHANGE_WEAK_FRONT       10
-#define CHANGE_WEAK_REAR        11
-#define CHANGES_COUNT           12
-
-struct change {
-    bool changed;
-    const char *parameter_name;
-    int16_t &value;
-    Controller &controller;
-};
-
-static change changes[] = {
-    {false,     P_CTRL_MOD,     ctrlMod,                cF},
-    {false,     P_CTRL_MOD,     ctrlMod,                cR},
-    {false,     P_CTRL_TYP,     ctrlTyp,                cF},
-    {false,     P_CTRL_TYP,     ctrlTyp,                cR},
-    {false,     P_I_MOT_MAX,    motorMaxCurrentFront,   cF},
-    {false,     P_I_MOT_MAX,    motorMaxCurrentRear,    cR},
-    {false,     P_FI_WEAK_ENA,  fieldWeakEnabled,       cF},
-    {false,     P_FI_WEAK_ENA,  fieldWeakEnabled,       cR},
-    {false,     P_FI_WEAK_MAX,  phaseAdvanceAngle,      cF},
-    {false,     P_FI_WEAK_MAX,  phaseAdvanceAngle,      cR},
-    {false,     P_PHA_ADV_MAX,  fieldWeakCurrent,       cF},
-    {false,     P_PHA_ADV_MAX,  fieldWeakCurrent,       cR},
-};
-
-static inline void set_changed(size_t change) {
-    changes[change].changed = true;
-}
 
 static int16_t avgFeedbackRpm() {
     if (cR.working() && cF.working()) {
@@ -132,7 +80,7 @@ void drawDrive() {
     u8g2.clearBuffer();
     drawSettingHeader("drive");
     u8g2.drawStr(0, CH*2, "FOC SIN");
-    switch(ctrlTyp) {
+    switch(param_get(cR.pCtrlTyp)) {
         case CTRL_TYP_FOC:
             u8g2.drawStr(0, CH*3, "\xaf\xaf\xaf");
             u8g2.drawStr(0, CH*3 + 4, "smooth");
@@ -146,21 +94,20 @@ void drawDrive() {
 }
 
 void actionDrive() {
-    switch(ctrlTyp) {
+    switch(param_get(cR.pCtrlTyp)) {
         case CTRL_TYP_FOC:
-            ctrlTyp = CTRL_TYP_SIN;
-            ctrlMod = CTRL_MOD_VLT;
+            param_set(cR.pCtrlTyp, CTRL_TYP_SIN);
+            param_set(cR.pCtrlMod, CTRL_MOD_VLT);
+            param_set(cF.pCtrlTyp, CTRL_TYP_SIN);
+            param_set(cF.pCtrlMod, CTRL_MOD_VLT);
             break;
         case CTRL_TYP_SIN:
-            ctrlTyp = CTRL_TYP_FOC;
-            ctrlMod = CTRL_MOD_TRQ;
+            param_set(cR.pCtrlTyp, CTRL_TYP_FOC);
+            param_set(cR.pCtrlMod, CTRL_MOD_TRQ);
+            param_set(cF.pCtrlTyp, CTRL_TYP_FOC);
+            param_set(cF.pCtrlMod, CTRL_MOD_TRQ);
             break;
     }
-
-    set_changed(CHANGE_TYPE_FRONT);
-    set_changed(CHANGE_TYPE_REAR);
-    set_changed(CHANGE_MODE_FRONT);
-    set_changed(CHANGE_MODE_REAR);
 
     drawDrive();
 }
@@ -168,30 +115,30 @@ void actionDrive() {
 void drawFieldWeak() {
     u8g2.clearBuffer();
 
-    switch (ctrlTyp) {
+    switch (param_get(cR.pCtrlTyp)) {
         case CTRL_TYP_SIN:
             drawSettingHeader("angle");
             u8g2.drawStr(0, CH*2, "0 15 30 45");
-            switch(phaseAdvanceAngle) {
+            switch(param_get(cR.pPhaAdvMax)) {
                 case  0: u8g2.drawStr(0, CH*3, "\xaf"); break;
                 case 15: u8g2.drawStr(0, CH*3, "  \xaf\xaf"); break;
                 case 30: u8g2.drawStr(0, CH*3, "     \xaf\xaf"); break;
                 case 45: u8g2.drawStr(0, CH*3, "        \xaf\xaf"); break;
             }
 
-            u8g2.drawStr(0, CH*3 + 4, phaseAdvanceAngle == 0 ? "standard" : "more speed");
+            u8g2.drawStr(0, CH*3 + 4, param_get(cR.pPhaAdvMax) ? "more speed" : "standard");
             break;
         case CTRL_TYP_FOC:
             drawSettingHeader("fi weak");
             u8g2.drawStr(0, CH*2, "0 2A 5A 8A");
-            switch (fieldWeakCurrent) {
+            switch (param_get(cR.pFiWeakMax)) {
                 case 0: u8g2.drawStr(0, CH*3, "\xaf"); break;
                 case 2: u8g2.drawStr(0, CH*3, "  \xaf\xaf"); break;
                 case 5: u8g2.drawStr(0, CH*3, "     \xaf\xaf"); break;
                 case 8: u8g2.drawStr(0, CH*3, "        \xaf\xaf"); break;
             }
 
-            u8g2.drawStr(0, CH*3 + 4, fieldWeakCurrent == 0 ? "disabled" : "more power");
+            u8g2.drawStr(0, CH*3 + 4, param_get(cR.pFiWeakMax) ? "more power" : "disabled");
             break;
     }
 
@@ -199,52 +146,50 @@ void drawFieldWeak() {
 }
 
 void actionFieldWeak() {
-        switch (ctrlTyp) {
+    int16_t newValue;
+    switch (param_get(cR.pCtrlTyp)) {
         case CTRL_TYP_SIN:
-            phaseAdvanceAngle = (phaseAdvanceAngle + 15) % 60;
-            fieldWeakEnabled = phaseAdvanceAngle != 0;
-            set_changed(CHANGE_WEAK_ENA_FRONT);
-            set_changed(CHANGE_WEAK_ENA_REAR);
-            set_changed(CHANGE_ANGLE_FRONT);
-            set_changed(CHANGE_ANGLE_REAR);
+            newValue = (param_get(cR.pPhaAdvMax) + 15) % 60;
+            param_set(cF.pPhaAdvMax, newValue);
+            param_set(cR.pPhaAdvMax, newValue);
+            param_set(cF.pFiWeakEna, newValue > 0);
+            param_set(cR.pFiWeakEna, newValue > 0);
             break;
         case CTRL_TYP_FOC:
-            switch(fieldWeakCurrent) {
-                case 0: fieldWeakCurrent = 2; break;
-                case 2: fieldWeakCurrent = 5; break;
-                case 5: fieldWeakCurrent = 8; break;
-                case 8: fieldWeakCurrent = 0; break;
+            switch(param_get(cR.pFiWeakMax)) {
+                case 0: newValue = 2; break;
+                case 2: newValue = 5; break;
+                case 5: newValue = 8; break;
+                case 8: newValue = 0; break;
             }
-            fieldWeakEnabled = fieldWeakCurrent != 0;
-            set_changed(CHANGE_WEAK_ENA_FRONT);
-            set_changed(CHANGE_WEAK_ENA_REAR);
-            set_changed(CHANGE_WEAK_FRONT);
-            set_changed(CHANGE_WEAK_REAR);
+            param_set(cF.pFiWeakMax, newValue);
+            param_set(cR.pFiWeakMax, newValue);
+            param_set(cF.pFiWeakEna, newValue > 0);
+            param_set(cR.pFiWeakEna, newValue > 0);
             break;
     }
 
     drawFieldWeak();
 }
 
-void drawCurrent(const char *name, int16_t &motorMaxCurrent) {
+void drawCurrent(Controller &c) {
     u8g2.clearBuffer();
     drawSettingHeader("current");
     u8g2.drawStr(0, CH*2, "5A 10A 15A");
-    switch(motorMaxCurrent) {
+    switch(param_get(c.pIMotMax)) {
         case 5:  u8g2.drawStr(0, CH*3, "\xaf\xaf"); break;
         case 10: u8g2.drawStr(0, CH*3, "   \xaf\xaf\xaf"); break;
         case 15: u8g2.drawStr(0, CH*3, "       \xaf\xaf\xaf"); break;
     }
-    u8g2.drawStr(0, CH*3 + 4, name);
+    u8g2.drawStr(0, CH*3 + 4, c.name);
     u8g2.sendBuffer();
 }
 
-void actionCurrent(const char *name, int16_t &motorMaxCurrent, size_t change) {
-    motorMaxCurrent += 5;
-    if (motorMaxCurrent > 15) motorMaxCurrent = 5;
-    set_changed(change);
-
-    drawCurrent(name, motorMaxCurrent);
+void actionCurrent(Controller &c) {
+    int16_t newCurrent = param_get(c.pIMotMax) + 5;
+    if (newCurrent > 15) newCurrent = 5;
+    param_set(c.pIMotMax, newCurrent);
+    drawCurrent(c);
 }
 
 void drawSaving() {
@@ -265,10 +210,10 @@ void onSwitchButton() {
             drawFieldWeak();
             break;
         case MENU_CURRENT_FRONT:
-            drawCurrent("front", motorMaxCurrentFront);
+            drawCurrent(cF);
             break;
         case MENU_CURRENT_REAR:
-            drawCurrent("rear", motorMaxCurrentRear);
+            drawCurrent(cR);
             break;
         case MENU_SAVING:
             drawSaving();
@@ -287,10 +232,10 @@ void onActionButton() {
             actionFieldWeak();
             break;
         case MENU_CURRENT_FRONT:
-            actionCurrent("front", motorMaxCurrentFront, CHANGE_CURRENT_FRONT);
+            actionCurrent(cF);
             break;
         case MENU_CURRENT_REAR:
-            actionCurrent("rear", motorMaxCurrentRear, CHANGE_CURRENT_REAR);
+            actionCurrent(cR);
             break;
         default:
             Serial.println("no action");
@@ -342,44 +287,45 @@ void loopSave() {
     }
     lastSave = millis();
 
-    for (size_t i = 0; i < CHANGES_COUNT; i++) {
-        change c = changes[i];
-
-        #ifdef SAVE_DEBUG
-        Serial.print("save ");
-        Serial.print(c.parameter_name);
-        Serial.print(" ");
-        Serial.print(c.controller.name);
-        Serial.print(": ");
-        #endif
-
-        if (!c.changed) {
+    Controller controllers[] = {cR, cF};
+    for (Controller &c : controllers) {
+        for (param *param : c.params) {
             #ifdef SAVE_DEBUG
-            Serial.println("skip, unchanged");
+            Serial.print("save ");
+            Serial.print(param->name);
+            Serial.print(" ");
+            Serial.print(c.name);
+            Serial.print(": ");
             #endif
-            continue; // can immediately try next
+
+            if (!param->dirty) {
+                #ifdef SAVE_DEBUG
+                Serial.println("skip, not dirty");
+                #endif
+                continue; // can immediately try next
+            }
+
+            if (!c.working()) {
+                // c.changed = false;
+                #ifdef SAVE_DEBUG
+                Serial.println("skip, no comms");
+                #endif
+                continue; // can immediately try next
+            }
+
+            if (set(c, param->name, param->value)) {
+                param->dirty = false;
+                #ifdef SAVE_DEBUG
+                Serial.println("success");
+                #endif
+            } else {
+                #ifdef SAVE_DEBUG
+                Serial.println("failed");
+                #endif
+            }
+
+            return; // must wait for next loop
         }
-
-        if (!c.controller.working()) {
-            // c.changed = false;
-            #ifdef SAVE_DEBUG
-            Serial.println("skip, no comms");
-            #endif
-            continue; // can immediately try next
-        }
-
-        if (set(c.controller, c.parameter_name, c.value)) {
-            c.changed = false;
-            #ifdef SAVE_DEBUG
-            Serial.println("success");
-            #endif
-        } else {
-            #ifdef SAVE_DEBUG
-            Serial.println("failed");
-            #endif
-        }
-
-        return; // must wait for next loop
     }
 
     // All changes saved correctly, go to home menu
