@@ -6,16 +6,59 @@ Bounce2::Button actionButton = Bounce2::Button();
 static Menu menu = (Menu) ((int) MENU_COUNT - 1); // initial state last menu means first menu is actual first state
 
 // Setting state
-static Drive drive = DRIVE_FOC;
-static uint8_t motorMaxCurrentFront = 5;
-static uint8_t motorMaxCurrentRear = 5;
-static uint8_t phaseAdvanceAngle = 0;
-static uint8_t fieldWeakCurrent = 0;
-static uint8_t fieldWeakEnabled = 0;
-static uint16_t changed;
+// static Drive drive = DRIVE_FOC;
+static int16_t ctrlMod = CTRL_MOD_VLT;
+static int16_t ctrlTyp = CTRL_TYP_SIN;
+static int16_t motorMaxCurrentFront = 5;
+static int16_t motorMaxCurrentRear = 5;
+static int16_t fieldWeakEnabled = 0;
+static int16_t phaseAdvanceAngle = 0;
+static int16_t fieldWeakCurrent = 0;
+// static uint16_t changed;
 
-static Controller cR("rear", PA10, PA9); // rear motor controller, USART1
 static Controller cF("front", PA3, PA2); // front motor controller, USART2
+static Controller cR("rear", PA10, PA9); // rear motor controller, USART1
+
+// Must be kept in sync with changes array
+#define CHANGE_TYPE_FRONT       0
+#define CHANGE_TYPE_REAR        1
+#define CHANGE_MODE_FRONT       2
+#define CHANGE_MODE_REAR        3
+#define CHANGE_CURRENT_FRONT    4
+#define CHANGE_CURRENT_REAR     5
+#define CHANGE_WEAK_ENA_FRONT   6
+#define CHANGE_WEAK_ENA_REAR    7
+#define CHANGE_ANGLE_FRONT      8
+#define CHANGE_ANGLE_REAR       9
+#define CHANGE_WEAK_FRONT       10
+#define CHANGE_WEAK_REAR        11
+#define CHANGES_COUNT           12
+
+struct change {
+    bool changed;
+    const char *parameter_name;
+    int16_t &value;
+    Controller &controller;
+};
+
+static change changes[] = {
+    {false,     P_CTRL_MOD,     ctrlMod,                cF},
+    {false,     P_CTRL_MOD,     ctrlMod,                cR},
+    {false,     P_CTRL_TYP,     ctrlTyp,                cF},
+    {false,     P_CTRL_TYP,     ctrlTyp,                cR},
+    {false,     P_I_MOT_MAX,    motorMaxCurrentFront,   cF},
+    {false,     P_I_MOT_MAX,    motorMaxCurrentRear,    cR},
+    {false,     P_FI_WEAK_ENA,  fieldWeakEnabled,       cF},
+    {false,     P_FI_WEAK_ENA,  fieldWeakEnabled,       cR},
+    {false,     P_FI_WEAK_MAX,  phaseAdvanceAngle,      cF},
+    {false,     P_FI_WEAK_MAX,  phaseAdvanceAngle,      cR},
+    {false,     P_PHA_ADV_MAX,  fieldWeakCurrent,       cF},
+    {false,     P_PHA_ADV_MAX,  fieldWeakCurrent,       cR},
+};
+
+static inline void set_changed(size_t change) {
+    changes[change].changed = true;
+}
 
 static int16_t avgFeedbackRpm() {
     if (cR.working() && cF.working()) {
@@ -89,12 +132,12 @@ void drawDrive() {
     u8g2.clearBuffer();
     drawSettingHeader("drive");
     u8g2.drawStr(0, CH*2, "FOC SIN");
-    switch(drive) {
-        case DRIVE_FOC:
+    switch(ctrlTyp) {
+        case CTRL_TYP_FOC:
             u8g2.drawStr(0, CH*3, "\xaf\xaf\xaf");
             u8g2.drawStr(0, CH*3 + 4, "smooth");
             break;
-        case DRIVE_SIN:
+        case CTRL_TYP_SIN:
             u8g2.drawStr(0, CH*3, "    \xaf\xaf\xaf");
             u8g2.drawStr(0, CH*3 + 4, "faster");
             break;
@@ -103,66 +146,87 @@ void drawDrive() {
 }
 
 void actionDrive() {
-    switch(drive) {
-        case DRIVE_FOC: drive = DRIVE_SIN; break;
-        case DRIVE_SIN: drive = DRIVE_FOC; break;
+    switch(ctrlTyp) {
+        case CTRL_TYP_FOC:
+            ctrlTyp = CTRL_TYP_SIN;
+            ctrlMod = CTRL_MOD_VLT;
+            break;
+        case CTRL_TYP_SIN:
+            ctrlTyp = CTRL_TYP_FOC;
+            ctrlMod = CTRL_MOD_TRQ;
+            break;
     }
-    changed |= CHANGED_DRIVE_FRONT | CHANGED_DRIVE_REAR;
+
+    set_changed(CHANGE_TYPE_FRONT);
+    set_changed(CHANGE_TYPE_REAR);
+    set_changed(CHANGE_MODE_FRONT);
+    set_changed(CHANGE_MODE_REAR);
 
     drawDrive();
 }
 
 void drawFieldWeak() {
     u8g2.clearBuffer();
-    // deg symbol is \xb0
-    if (drive == DRIVE_SIN) {
-        drawSettingHeader("angle");
-        u8g2.drawStr(0, CH*2, "0 15 30 45");
-        switch(phaseAdvanceAngle) {
-            case  0: u8g2.drawStr(0, CH*3, "\xaf"); break;
-            case 15: u8g2.drawStr(0, CH*3, "  \xaf\xaf"); break;
-            case 30: u8g2.drawStr(0, CH*3, "     \xaf\xaf"); break;
-            case 45: u8g2.drawStr(0, CH*3, "        \xaf\xaf"); break;
-        }
 
-        u8g2.drawStr(0, CH*3 + 4, phaseAdvanceAngle == 0 ? "standard" : "more speed");
-    } else if (drive == DRIVE_FOC) {
-        drawSettingHeader("fi weak");
-        u8g2.drawStr(0, CH*2, "0 2A 5A 8A");
-        switch (fieldWeakCurrent) {
-            case 0: u8g2.drawStr(0, CH*3, "\xaf"); break;
-            case 2: u8g2.drawStr(0, CH*3, "  \xaf\xaf"); break;
-            case 5: u8g2.drawStr(0, CH*3, "     \xaf\xaf"); break;
-            case 8: u8g2.drawStr(0, CH*3, "        \xaf\xaf"); break;
-        }
+    switch (ctrlTyp) {
+        case CTRL_TYP_SIN:
+            drawSettingHeader("angle");
+            u8g2.drawStr(0, CH*2, "0 15 30 45");
+            switch(phaseAdvanceAngle) {
+                case  0: u8g2.drawStr(0, CH*3, "\xaf"); break;
+                case 15: u8g2.drawStr(0, CH*3, "  \xaf\xaf"); break;
+                case 30: u8g2.drawStr(0, CH*3, "     \xaf\xaf"); break;
+                case 45: u8g2.drawStr(0, CH*3, "        \xaf\xaf"); break;
+            }
 
-        u8g2.drawStr(0, CH*3 + 4, fieldWeakCurrent == 0 ? "disabled" : "more power");
+            u8g2.drawStr(0, CH*3 + 4, phaseAdvanceAngle == 0 ? "standard" : "more speed");
+            break;
+        case CTRL_TYP_FOC:
+            drawSettingHeader("fi weak");
+            u8g2.drawStr(0, CH*2, "0 2A 5A 8A");
+            switch (fieldWeakCurrent) {
+                case 0: u8g2.drawStr(0, CH*3, "\xaf"); break;
+                case 2: u8g2.drawStr(0, CH*3, "  \xaf\xaf"); break;
+                case 5: u8g2.drawStr(0, CH*3, "     \xaf\xaf"); break;
+                case 8: u8g2.drawStr(0, CH*3, "        \xaf\xaf"); break;
+            }
+
+            u8g2.drawStr(0, CH*3 + 4, fieldWeakCurrent == 0 ? "disabled" : "more power");
+            break;
     }
 
-    out:
     u8g2.sendBuffer();
 }
 
 void actionFieldWeak() {
-    if (drive == DRIVE_SIN) {
-        phaseAdvanceAngle = (phaseAdvanceAngle + 15) % 60;
-        fieldWeakEnabled = phaseAdvanceAngle != 0;
-        changed |= CHANGED_ANGLE_REAR | CHANGED_ANGLE_FRONT | CHANGED_WEAK_ENA_REAR | CHANGED_WEAK_ENA_FRONT;
-    } else if (drive == DRIVE_FOC) {
-        switch(fieldWeakCurrent) {
-            case 0: fieldWeakCurrent = 2; break;
-            case 2: fieldWeakCurrent = 5; break;
-            case 5: fieldWeakCurrent = 8; break;
-            case 8: fieldWeakCurrent = 0; break;
-        }
-        fieldWeakEnabled = fieldWeakCurrent != 0;
-        changed |= CHANGED_ANGLE_REAR | CHANGED_ANGLE_FRONT | CHANGED_WEAK_ENA_REAR | CHANGED_WEAK_ENA_FRONT;
+        switch (ctrlTyp) {
+        case CTRL_TYP_SIN:
+            phaseAdvanceAngle = (phaseAdvanceAngle + 15) % 60;
+            fieldWeakEnabled = phaseAdvanceAngle != 0;
+            set_changed(CHANGE_WEAK_ENA_FRONT);
+            set_changed(CHANGE_WEAK_ENA_REAR);
+            set_changed(CHANGE_ANGLE_FRONT);
+            set_changed(CHANGE_ANGLE_REAR);
+            break;
+        case CTRL_TYP_FOC:
+            switch(fieldWeakCurrent) {
+                case 0: fieldWeakCurrent = 2; break;
+                case 2: fieldWeakCurrent = 5; break;
+                case 5: fieldWeakCurrent = 8; break;
+                case 8: fieldWeakCurrent = 0; break;
+            }
+            fieldWeakEnabled = fieldWeakCurrent != 0;
+            set_changed(CHANGE_WEAK_ENA_FRONT);
+            set_changed(CHANGE_WEAK_ENA_REAR);
+            set_changed(CHANGE_WEAK_FRONT);
+            set_changed(CHANGE_WEAK_REAR);
+            break;
     }
 
     drawFieldWeak();
 }
 
-void drawCurrent(const char *name, uint8_t &motorMaxCurrent) {
+void drawCurrent(const char *name, int16_t &motorMaxCurrent) {
     u8g2.clearBuffer();
     drawSettingHeader("current");
     u8g2.drawStr(0, CH*2, "5A 10A 15A");
@@ -175,12 +239,12 @@ void drawCurrent(const char *name, uint8_t &motorMaxCurrent) {
     u8g2.sendBuffer();
 }
 
-void actionCurrent(const char *name, uint8_t *motorMaxCurrent, uint8_t changed_flag) {
-    *motorMaxCurrent += 5;
-    if (*motorMaxCurrent > 15) *motorMaxCurrent = 5;
-    changed |= changed_flag;
+void actionCurrent(const char *name, int16_t &motorMaxCurrent, size_t change) {
+    motorMaxCurrent += 5;
+    if (motorMaxCurrent > 15) motorMaxCurrent = 5;
+    set_changed(change);
 
-    drawCurrent(name, *motorMaxCurrent);
+    drawCurrent(name, motorMaxCurrent);
 }
 
 void drawSaving() {
@@ -223,10 +287,10 @@ void onActionButton() {
             actionFieldWeak();
             break;
         case MENU_CURRENT_FRONT:
-            actionCurrent("front", &motorMaxCurrentFront, CHANGED_CURRENT_FRONT);
+            actionCurrent("front", motorMaxCurrentFront, CHANGE_CURRENT_FRONT);
             break;
         case MENU_CURRENT_REAR:
-            actionCurrent("rear", &motorMaxCurrentRear, CHANGED_CURRENT_REAR);
+            actionCurrent("rear", motorMaxCurrentRear, CHANGE_CURRENT_REAR);
             break;
         default:
             Serial.println("no action");
@@ -273,61 +337,60 @@ void loopButtons() {
 void loopSave() {
     static uint32_t lastSave;
 
-    if (lastSave + 500 > millis()) {
+    if (lastSave + SAVE_INTERVAL > millis()) {
         return;
     }
     lastSave = millis();
-    // TODO set VLT/TRQ mode
 
-    if ((changed & CHANGED_DRIVE_FRONT)) {
-        drawStrFull("saving dr_f");
-        if (!cF.working() || set(cF, P_CTRL_TYP, drive)) changed ^= CHANGED_DRIVE_FRONT;
-        return;
-    } else if ((changed & CHANGED_DRIVE_REAR)) {
-        drawStrFull("saving dr_r");
-        if (!cR.working() || set(cR, P_CTRL_TYP, drive)) changed ^= CHANGED_DRIVE_REAR;
-        return;
-    } else if ((changed & CHANGED_WEAK_ENA_FRONT)) {
-        drawStrFull("saving weak_ena_f");
-        if (!cF.working() || set(cF, P_FI_WEAK_ENA, fieldWeakEnabled)) changed ^= CHANGED_WEAK_ENA_FRONT;
-        return;
-    } else if ((changed & CHANGED_WEAK_ENA_REAR)) {
-        drawStrFull("saving weak_ena_r");
-        if (!cR.working() || set(cR, P_FI_WEAK_ENA, fieldWeakEnabled)) changed ^= CHANGED_WEAK_ENA_REAR;
-        return;
-    } else if ((changed & CHANGED_WEAK_FRONT) ) {
-        drawStrFull("saving weak_f");
-        if (!cF.working() || set(cF, P_FI_WEAK_MAX, fieldWeakCurrent)) changed ^= CHANGED_WEAK_FRONT;
-        return;
-    } else if ((changed & CHANGED_WEAK_REAR)) {
-        drawStrFull("saving weak_r");
-        if (!cR.working() || set(cR, P_FI_WEAK_MAX, fieldWeakCurrent)) changed ^= CHANGED_WEAK_REAR;
-        return;
-    } else if ((changed & CHANGED_ANGLE_FRONT)) {
-        if (!cF.working() || set(cF, P_PHA_ADV_MAX, phaseAdvanceAngle)) changed ^= CHANGED_ANGLE_FRONT;
-        return;
-    } else if ((changed & CHANGED_ANGLE_REAR)) {
-        if (!cR.working() || set(cR, P_PHA_ADV_MAX, phaseAdvanceAngle)) changed ^= CHANGED_ANGLE_REAR;
-        return;
-    } else if ((changed & CHANGED_CURRENT_FRONT)) {
-        if (!cF.working() || set(cF, P_I_MOT_MAX, motorMaxCurrentFront)) changed ^= CHANGED_CURRENT_FRONT;
-        return;
-    } else if ((changed & CHANGED_CURRENT_REAR) ) {
-        if (!cR.working() || set(cR, P_I_MOT_MAX, motorMaxCurrentRear)) changed ^= CHANGED_CURRENT_REAR;
-        return;
-    } else if (changed == 0) {
-        // All changes saved, go to home menu
-        onSwitchButton();
+    for (size_t i = 0; i < CHANGES_COUNT; i++) {
+        change c = changes[i];
+
+        #ifdef SAVE_DEBUG
+        Serial.print("save ");
+        Serial.print(c.parameter_name);
+        Serial.print(" ");
+        Serial.print(c.controller.name);
+        Serial.print(": ");
+        #endif
+
+        if (!c.changed) {
+            #ifdef SAVE_DEBUG
+            Serial.println("skip, unchanged");
+            #endif
+            continue; // can immediately try next
+        }
+
+        if (!c.controller.working()) {
+            // c.changed = false;
+            #ifdef SAVE_DEBUG
+            Serial.println("skip, no comms");
+            #endif
+            continue; // can immediately try next
+        }
+
+        if (set(c.controller, c.parameter_name, c.value)) {
+            c.changed = false;
+            #ifdef SAVE_DEBUG
+            Serial.println("success");
+            #endif
+        } else {
+            #ifdef SAVE_DEBUG
+            Serial.println("failed");
+            #endif
+        }
+
+        return; // must wait for next loop
     }
 
-    return; // Pressing buttons not allowed
+    // All changes saved correctly, go to home menu
+    onSwitchButton();
 }
 
 void loopValueRefresh() {
     static uint32_t lastRefresh;
     static uint8_t lastRefreshCommand;
 
-    if (lastRefresh + 500 > millis()) {
+    if (lastRefresh + HOME_REFRESH_INTERVAL > millis()) {
         return;
     }
 
@@ -344,13 +407,13 @@ void loopValueRefresh() {
             get(cR, V_BATV, &cR.feedbackBATV);
             break;
         case 3:
-            get(cF, V_SPD_AVG, &cR.feedbackSPD_AVG);
+            get(cF, V_SPD_AVG, &cF.feedbackSPD_AVG);
             break;
         case 4:
-            get(cF, V_DC_CURR, &cR.feedbackDC_CURR);
+            get(cF, V_DC_CURR, &cF.feedbackDC_CURR);
             break;
         case 5:
-            get(cF, V_BATV, &cR.feedbackBATV);
+            get(cF, V_BATV, &cF.feedbackBATV);
             break;
     }
     lastRefreshCommand = (lastRefreshCommand + 1) % 6;

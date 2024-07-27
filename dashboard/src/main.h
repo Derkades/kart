@@ -19,11 +19,13 @@
 #define V_SPD_AVG       "SPD_AVG"       // rpm
 #define V_BATV          "BATV"          // battery voltage, centivolts
 
-enum Drive {
-    DRIVE_COM,
-    DRIVE_SIN,
-    DRIVE_FOC
-};
+#define CTRL_MOD_VLT 1
+#define CTRL_MOD_SPD 2
+#define CTRL_MOD_TRQ 3
+
+#define CTRL_TYP_COM 0
+#define CTRL_TYP_SIN 1
+#define CTRL_TYP_FOC 2
 
 enum Menu {
     MENU_HOME,
@@ -34,14 +36,3 @@ enum Menu {
     MENU_SAVING,
     MENU_COUNT, // internal use only
 };
-
-#define CHANGED_DRIVE_FRONT       1
-#define CHANGED_DRIVE_REAR        2
-#define CHANGED_CURRENT_FRONT     4
-#define CHANGED_CURRENT_REAR      8
-#define CHANGED_ANGLE_FRONT      16
-#define CHANGED_ANGLE_REAR       32
-#define CHANGED_WEAK_FRONT       64
-#define CHANGED_WEAK_REAR       128
-#define CHANGED_WEAK_ENA_FRONT  256
-#define CHANGED_WEAK_ENA_REAR   512
