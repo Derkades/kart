@@ -237,14 +237,14 @@ void setup(void) {
     u8g2.begin();
 
     u8g2.setFont(FONT_STD);
-    drawStrCentered2("loading");
-    u8g2.sendBuffer();
 
-    switchButton.attach(PB_0, INPUT_PULLUP );
+    drawStrFull("loading");
+
+    switchButton.attach(PB_0, INPUT_PULLUP);
     switchButton.interval(5);
     switchButton.setPressedState(LOW);
 
-    actionButton.attach(PB_1, INPUT_PULLUP );
+    actionButton.attach(PB_1, INPUT_PULLUP);
     actionButton.interval(5);
     actionButton.setPressedState(LOW);
 

@@ -119,7 +119,7 @@ bool get(Controller &controller, const char *param, int16_t *value_p) {
     return success;
 }
 
-static void getBlocking(Controller &controller, const char *param, int16_t *value_p) {
+void getBlocking(Controller &controller, const char *param, int16_t *value_p) {
     while (!get(controller, param, value_p)) {
         #ifdef CONTROL_SERIAL_TX_DEBUG
         Serial.println("blocking retry");
