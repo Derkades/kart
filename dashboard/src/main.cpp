@@ -3,21 +3,6 @@
 Bounce2::Button switchButton = Bounce2::Button();
 Bounce2::Button actionButton = Bounce2::Button();
 
-class Controller {
-    public:
-        Controller(const char *name, uint32_t rx, uint32_t tx) : serial(rx, tx), name{name} {}
-        const char *name;
-        HardwareSerial serial;
-        uint32_t lastWorking;
-        int16_t feedbackSPD_AVG; // average motor speed RPM
-        int16_t feedbackBATV; // battery voltage * 100
-        int16_t feedbackDC_CURR; // total DC link current A * 100
-
-        bool working() {
-            return lastWorking && (lastWorking + CONTROL_SERIAL_WORKING_TIMEOUT_MS > millis());
-        }
-};
-
 static Menu menu = (Menu) ((int) MENU_COUNT - 1); // initial state last menu means first menu is actual first state
 
 // Setting state
@@ -32,135 +17,7 @@ static uint16_t changed;
 static Controller cR("rear", PA10, PA9); // rear motor controller, USART1
 static Controller cF("front", PA3, PA2); // front motor controller, USART2
 
-// waits for OK response for a specific parameter/value
-bool recv(Controller &controller, const char *param, int16_t *value_p) {
-    const uint32_t start = millis();
-    char buf[CONTROL_SERIAL_RECV_BUF_SIZE];
-
-    while (start + CONTROL_SERIAL_TIMEOUT_MS > millis()) {
-        // Wait for serial to be available
-        if (!controller.serial.available()) {
-            continue;
-        }
-
-        // Read a line from serial and add trailing null byte
-        size_t size = controller.serial.readBytesUntil('\n', (uint8_t*) buf, CONTROL_SERIAL_RECV_BUF_SIZE - 1);
-        buf[size] = '\0';
-
-        #ifdef CONTROL_SERIAL_RX_DEBUG_RAW
-        Serial.print("\nRX_raw:");
-        Serial.println(buf);
-        #endif
-
-        // This line contains a value reponse?
-        if (memcmp("# name:", buf, MIN(7, size)) == 0) {
-            char name[32];
-            int16_t value;
-
-            // Extract parameter name and value
-            char *startQuote = strstr(buf, "\"");
-            if (!startQuote) {
-                Serial.println(" RX_err_startQuote");
-                continue;
-            }
-            char *endQuote = strstr(startQuote + 1, "\"");
-            if (!endQuote) {
-                Serial.println(" RX_err_endQuote");
-                continue;
-            }
-            memcpy(name, startQuote + 1, MIN(endQuote - startQuote - 1, 31));
-            name[MIN(endQuote - startQuote - 1, 31)] = '\0';
-
-            char *startValue = strstr(buf, "value:");
-            if (!startValue) {
-                Serial.println(" RX_err_startValue");
-                continue;
-            }
-
-            value = (int16_t) strtol(startValue + strlen("value:"), NULL, 10);
-
-            #ifdef CONTROL_SERIAL_RX_DEBUG
-            Serial.print(" RX_name:");
-            Serial.print(name);
-            Serial.print(" RX_val:");
-            Serial.print(value);
-            #endif
-
-            // Is this the value we were looking for?
-            if (strcmp(name, param) != 0) {
-                #ifdef CONTROL_SERIAL_RX_DEBUG
-                Serial.print(" RX_ignore");
-                #endif
-                continue;
-            }
-
-            #ifdef CONTROL_SERIAL_RX_DEBUG
-            Serial.print(" RX_ok");
-            #endif
-
-            if (value_p != NULL) {
-                *value_p = value;
-            }
-
-            controller.lastWorking = millis();
-
-            return true;
-        }
-    }
-
-    #ifdef CONTROL_SERIAL_RX_DEBUG
-    Serial.print(" RX_timeout");
-    #endif
-    return false; // timeout
-}
-
-void send(Controller &controller, char *command) {
-    #ifdef CONTROL_SERIAL_TX_DEBUG
-    Serial.print("send ");
-    Serial.print(controller.name);
-    Serial.print(": ");
-    Serial.write((uint8_t*) command, strlen(command) - 1);  // send command to debug serial, excluding newline
-    #endif
-
-    controller.serial.write(command);
-}
-
-bool set(Controller &controller, const char *param, const int16_t value) {
-    char command[32];
-    snprintf(command, 32, "$SET %s %i\n", param, value);
-
-    send(controller, command);
-
-    bool success = recv(controller, param, NULL);
-    #ifdef CONTROL_SERIAL_TX_DEBUG
-    Serial.println(success ? " OK" : " FAIL");
-    #endif
-    return success;
-}
-
-bool get(Controller &controller, const char *param, int16_t *value_p) {
-    char command[32];
-    snprintf(command, 32, "$GET %s\n", param);
-
-    send(controller, command);
-
-    bool success = recv(controller, param, value_p);
-    #ifdef CONTROL_SERIAL_TX_DEBUG
-    Serial.println(success ? " OK" : " FAIL");
-    #endif
-    return success;
-}
-
-void getBlock(Controller &controller, const char *param, int16_t *value_p) {
-    while (!get(controller, param, value_p)) {
-        #ifdef CONTROL_SERIAL_TX_DEBUG
-        Serial.println("blocking retry");
-        #endif
-        continue;
-    }
-}
-
-int16_t avgFeedbackRpm() {
+static int16_t avgFeedbackRpm() {
     if (cR.working() && cF.working()) {
         return (cR.feedbackSPD_AVG + cF.feedbackSPD_AVG) / 2;
     } else if (cR.working()) {
@@ -172,11 +29,11 @@ int16_t avgFeedbackRpm() {
     }
 }
 
-int16_t totalFeedbackCurrent() {
+static int16_t totalFeedbackCurrent() {
     return (cR.working() ? cR.feedbackDC_CURR : 0) + (cF.working() ? cF.feedbackDC_CURR : 0);
 }
 
-int16_t avgFeedbackBatVoltage() {
+static int16_t avgFeedbackBatVoltage() {
     if (cR.working() && cF.working()) {
         return (cR.feedbackBATV + cF.feedbackBATV) / 2;
     } else if (cR.working()) {
@@ -188,12 +45,10 @@ int16_t avgFeedbackBatVoltage() {
     }
 }
 
-void drawHome() {
+static void drawHome() {
     // If both controllers have no working feedback, there is no data we can show
     if (!cR.working() && !cF.working()) {
-        u8g2.clearBuffer();
-        drawStrCentered2("no comms");
-        u8g2.sendBuffer();
+        drawStrFull("no comms");
         return;
     }
 
@@ -329,9 +184,7 @@ void actionCurrent(const char *name, uint8_t *motorMaxCurrent, uint8_t changed_f
 }
 
 void drawSaving() {
-    u8g2.clearBuffer();
-    drawStrCentered2("saving");
-    u8g2.sendBuffer();
+    drawStrFull("saving");
 }
 
 void onSwitchButton() {
@@ -427,21 +280,27 @@ void loopSave() {
     // TODO set VLT/TRQ mode
 
     if ((changed & CHANGED_DRIVE_FRONT)) {
+        drawStrFull("saving dr_f");
         if (!cF.working() || set(cF, P_CTRL_TYP, drive)) changed ^= CHANGED_DRIVE_FRONT;
         return;
     } else if ((changed & CHANGED_DRIVE_REAR)) {
+        drawStrFull("saving dr_r");
         if (!cR.working() || set(cR, P_CTRL_TYP, drive)) changed ^= CHANGED_DRIVE_REAR;
         return;
     } else if ((changed & CHANGED_WEAK_ENA_FRONT)) {
+        drawStrFull("saving weak_ena_f");
         if (!cF.working() || set(cF, P_FI_WEAK_ENA, fieldWeakEnabled)) changed ^= CHANGED_WEAK_ENA_FRONT;
         return;
     } else if ((changed & CHANGED_WEAK_ENA_REAR)) {
+        drawStrFull("saving weak_ena_r");
         if (!cR.working() || set(cR, P_FI_WEAK_ENA, fieldWeakEnabled)) changed ^= CHANGED_WEAK_ENA_REAR;
         return;
     } else if ((changed & CHANGED_WEAK_FRONT) ) {
+        drawStrFull("saving weak_f");
         if (!cF.working() || set(cF, P_FI_WEAK_MAX, fieldWeakCurrent)) changed ^= CHANGED_WEAK_FRONT;
         return;
     } else if ((changed & CHANGED_WEAK_REAR)) {
+        drawStrFull("saving weak_r");
         if (!cR.working() || set(cR, P_FI_WEAK_MAX, fieldWeakCurrent)) changed ^= CHANGED_WEAK_REAR;
         return;
     } else if ((changed & CHANGED_ANGLE_FRONT)) {

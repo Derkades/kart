@@ -1,0 +1,13 @@
+// Vehicle parameters
+#define WHEEL_CIRCUMFERENCE_MM 603
+#define BAT_VOLT_EMPTY 3.3 * 12
+#define BAT_VOLT_FULL 4.2 * 12
+
+// Serial control protocol parameters
+#define CONTROL_SERIAL_BAUD 9600     // TODO try faster baud rate
+#define CONTROL_SERIAL_RX_DEBUG
+// #define CONTROL_SERIAL_RX_DEBUG_RAW
+#define CONTROL_SERIAL_TX_DEBUG
+#define CONTROL_SERIAL_TIMEOUT_MS 100
+#define CONTROL_SERIAL_WORKING_TIMEOUT_MS 10000
+#define CONTROL_SERIAL_RECV_BUF_SIZE 64

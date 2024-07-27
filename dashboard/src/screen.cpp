@@ -14,7 +14,9 @@ void drawStrCentered(u8g2_uint_t y, const char *text) {
     u8g2.drawStr(x, y, text);
 }
 
-void drawStrCentered2(const char *text) {
+void drawStrFull(const char *text) {
+    u8g2.clearBuffer();
     u8g2_uint_t x = (SCREEN_WIDTH - strlen(text)*CW) / 2;
     drawStrCentered((SCREEN_HEIGHT - CH) / 2 + CH, text);
+    u8g2.sendBuffer();
 }
