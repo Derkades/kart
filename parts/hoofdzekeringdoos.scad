@@ -32,6 +32,12 @@ difference() {
         translate([x, 0, 0])
         cube([t, cutout_width, cutout_height], anchor=BOTTOM);
     }
+    
+    up(h-1)
+    fwd(5)
+    scale(0.9)
+    linear_extrude(2)
+    text("hoofdzekering", anchor=BOTTOM);
 }
 
 // Screw mounts right
