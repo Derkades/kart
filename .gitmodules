@@ -1,3 +1,6 @@
 [submodule "hoverboard-firmware-hack-FOC"]
 	path = hoverboard-firmware-hack-FOC
 	url = https://github.com/EFeru/hoverboard-firmware-hack-FOC.git
+[submodule "parts/BOSL2"]
+	path = parts/BOSL2
+	url = https://github.com/BelfrySCAD/BOSL2
