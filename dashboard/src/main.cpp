@@ -290,23 +290,23 @@ void loopSave() {
     Controller controllers[] = {cR, cF};
     for (Controller &c : controllers) {
         for (param *param : c.params) {
+            if (!param->dirty) {
+                // #ifdef SAVE_DEBUG
+                // Serial.println("skip, not dirty");
+                // #endif
+                continue; // can immediately try next
+            }
+
             #ifdef SAVE_DEBUG
             Serial.print("save ");
             Serial.print(param->name);
             Serial.print(" ");
             Serial.print(c.name);
-            Serial.print(": ");
+            Serial.println(": ");
             #endif
 
-            if (!param->dirty) {
-                #ifdef SAVE_DEBUG
-                Serial.println("skip, not dirty");
-                #endif
-                continue; // can immediately try next
-            }
-
             if (!c.working()) {
-                // c.changed = false;
+                param->dirty = false;
                 #ifdef SAVE_DEBUG
                 Serial.println("skip, no comms");
                 #endif

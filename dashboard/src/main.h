@@ -1,3 +1,4 @@
+#define SERIAL_RX_BUFFER_SIZE 256
 #include <Arduino.h>
 #include <Bounce2.h>
 

@@ -5,8 +5,8 @@
 
 // https://github.com/EFeru/hoverboard-firmware-hack-FOC/wiki/Debug-Serial
 // Parameters (read-write)
-#define P_CTRL_MOD      "CTRL_MOD"      // 1=Voltage, 2=Speed, 3=Torque
 #define P_CTRL_TYP      "CTRL_TYP"      // 0=Commutation 1=Sinusodial 2=FOC
+#define P_CTRL_MOD      "CTRL_MOD"      // 1=Voltage, 2=Speed, 3=Torque
 #define P_I_MOT_MAX     "I_MOT_MAX"     // Max motor current A
 #define P_FI_WEAK_ENA   "FI_WEAK_ENA"   // Field weakening / phase advance enabled
 #define P_FI_WEAK_MAX   "FI_WEAK_MAX"
