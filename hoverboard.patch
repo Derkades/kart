@@ -1,5 +1,5 @@
 diff --git a/Inc/config.h b/Inc/config.h
-index 12bd564..bca1d5c 100644
+index 12bd564..7f4da64 100644
 --- a/Inc/config.h
 +++ b/Inc/config.h
 @@ -9,9 +9,9 @@
@@ -36,7 +36,7 @@ index 12bd564..bca1d5c 100644
  #define BAT_BLINK_INTERVAL      80        // battery led blink interval (80 loops * 5ms ~= 400ms)
  #define BAT_LVL5                (390 * BAT_CELLS * BAT_CALIB_ADC) / BAT_CALIB_REAL_VOLTAGE    // Green blink:  no beep
  #define BAT_LVL4                (380 * BAT_CELLS * BAT_CALIB_ADC) / BAT_CALIB_REAL_VOLTAGE    // Yellow:       no beep
-@@ -147,7 +147,7 @@
+@@ -147,19 +147,19 @@
  #define MOTOR_RIGHT_ENA                 // [-] Enable RIGHT motor. Comment-out if this motor is not needed to be operational
  
  // Control selections
@@ -45,7 +45,11 @@ index 12bd564..bca1d5c 100644
  #define CTRL_MOD_REQ    VLT_MODE        // [-] Control mode request: OPEN_MODE, VLT_MODE (default), SPD_MODE, TRQ_MODE. Note: SPD_MODE and TRQ_MODE are only available for CTRL_FOC!
  #define DIAG_ENA        1               // [-] Motor Diagnostics enable flag: 0 = Disabled, 1 = Enabled (default)
  
-@@ -157,9 +157,9 @@
+ // Limitation settings
+-#define I_MOT_MAX       15              // [A] Maximum single motor current limit
+-#define I_DC_MAX        17              // [A] Maximum stage2 DC Link current limit for Commutation and Sinusoidal types (This is the final current protection. Above this value, current chopping is applied. To avoid this make sure that I_DC_MAX = I_MOT_MAX + 2A)
++#define I_MOT_MAX       10              // [A] Maximum single motor current limit
++#define I_DC_MAX        15              // [A] Maximum stage2 DC Link current limit for Commutation and Sinusoidal types (This is the final current protection. Above this value, current chopping is applied. To avoid this make sure that I_DC_MAX = I_MOT_MAX + 2A)
  #define N_MOT_MAX       1000            // [rpm] Maximum motor speed limit
  
  // Field Weakening / Phase Advance
