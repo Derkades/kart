@@ -257,7 +257,7 @@ void setup(void) {
     actionButton.interval(5);
     actionButton.setPressedState(LOW);
 
-    Serial.begin(115200);
+    Serial.begin(SERIAL_BAUD);
     cR.serial.begin(CONTROL_SERIAL_BAUD);
     cF.serial.begin(CONTROL_SERIAL_BAUD);
 
@@ -291,40 +291,20 @@ void loopSave() {
     for (Controller &c : controllers) {
         for (param *param : c.params) {
             if (!param->dirty) {
-                // #ifdef SAVE_DEBUG
-                // Serial.println("skip, not dirty");
-                // #endif
                 continue; // can immediately try next
             }
-
-            #ifdef SAVE_DEBUG
-            Serial.print("save ");
-            Serial.print(param->name);
-            Serial.print(" ");
-            Serial.print(c.name);
-            Serial.println(": ");
-            #endif
 
             if (!c.working()) {
                 param->dirty = false;
                 #ifdef SAVE_DEBUG
-                Serial.println("skip, no comms");
+                Serial.printf("SAVE %s %s: skip, no comms\n", c.name, param->name, param->value);
                 #endif
                 continue; // can immediately try next
             }
 
-            if (set(c, param->name, param->value)) {
-                param->dirty = false;
-                #ifdef SAVE_DEBUG
-                Serial.println("success");
-                #endif
-            } else {
-                #ifdef SAVE_DEBUG
-                Serial.println("failed");
-                #endif
-            }
+            set(c, param->name, param->value);
 
-            return; // must wait for next loop
+            return; // sent serial data, so cannot send anything else this loop
         }
     }
 
@@ -370,9 +350,13 @@ void loopValueRefresh() {
 }
 
 void loop() {
+    // Receive serial data from controllers
+    recv(cF);
+    recv(cR);
+
     if (menu == MENU_SAVING) {
         loopSave();
-        return; // Pressing buttons not allowed in save menu
+        return; // don't loop buttons or refresh values
     }
 
     loopButtons();
