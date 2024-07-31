@@ -193,7 +193,10 @@ void actionCurrent(Controller &c) {
 }
 
 void drawSaving() {
-    drawStrFull("saving");
+    u8g2.clearBuffer();
+    u8g2.drawStr(0, CH, "saving");
+    // Later, the save loop will add more information about which parameter is saving
+    u8g2.sendBuffer();
 }
 
 void onSwitchButton() {
@@ -302,7 +305,14 @@ void loopSave() {
                 continue; // can immediately try next
             }
 
-            set(c, param->name, param->value);
+            drawStrFull(param->name);
+
+            // Show on-screen which parameter is saving
+            u8g2.clearBuffer();
+            u8g2.drawStr(0, CH, "saving");
+            u8g2.drawStr(0, CH*2, c.name);
+            u8g2.drawStr(0, CH*3, param->name);
+            u8g2.sendBuffer();
 
             return; // sent serial data, so cannot send anything else this loop
         }
