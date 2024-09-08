@@ -4,6 +4,7 @@ static void process_response(Controller &controller, char *name, int16_t value) 
     // See if received name is a parameter
     for (param *param : controller.params) {
         if (strcmp(param->name, name) != 0) {
+            Serial.printf("RX %s %s %i %i not match %s\n", controller.name, param->name, strlen(param->name), param->value, name);
             continue; // received different parameter
         }
 
