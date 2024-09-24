@@ -110,7 +110,7 @@ void recv(Controller &controller) {
     value = (int16_t) strtol(startValue + strlen("value:"), NULL, 10);
 
     #ifdef CONTROL_SERIAL_RX_DEBUG
-    Serial.printf("RX %s name:%s val:%i\n", controller.name, value);
+    Serial.printf("RX %s name:%s val:%i\n", controller.name, name, value);
     #endif
 
     process_response(controller, name, value);
