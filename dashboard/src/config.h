@@ -10,13 +10,12 @@
 
 // Serial debug protocol parameters
 #define CONTROL_SERIAL_BAUD 9600
-#define CONTROL_SERIAL_RX_DEBUG
+// #define CONTROL_SERIAL_RX_DEBUG
 // #define CONTROL_SERIAL_RX_DEBUG_RAW
-#define CONTROL_SERIAL_TX_DEBUG
+// #define CONTROL_SERIAL_TX_DEBUG
 #define CONTROL_SERIAL_WORKING_TIMEOUT_MS 30000 // TODO lower when it works
-#define CONTROL_SERIAL_RECV_BUF_SIZE 64
 
 // Menu parameters
 #define SAVE_DEBUG
-#define SAVE_INTERVAL 1000 // TODO lower when it works
-#define HOME_REFRESH_INTERVAL 1000 // TODO lower when it works
+#define SAVE_INTERVAL 2000 // TODO lower when it works
+#define HOME_REFRESH_INTERVAL 200 // TODO lower when it works

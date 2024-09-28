@@ -63,7 +63,7 @@ static void drawHome() {
     } else if (!cF.working()) {
         strcpy(batText, "err front");
     } else {
-        const float batVoltage = 1e-2f * voltage;
+        const float batVoltage = voltage;
         const uint8_t batPercent = (uint8_t) ((voltage - BAT_VOLT_EMPTY) * 100 / (BAT_VOLT_FULL - BAT_VOLT_EMPTY));
         snprintf(batText, 16, "%.1fV %i%%", batVoltage, batPercent);
     }
@@ -300,12 +300,15 @@ void loopSave() {
             if (!c.working()) {
                 param->dirty = false;
                 #ifdef SAVE_DEBUG
-                Serial.printf("SAVE %s %s: skip, no comms\n", c.name, param->name, param->value);
+                Serial.printf("SAVE %s %s: no comms dirty=>false\n", c.name, param->name);
                 #endif
                 continue; // can immediately try next
             }
 
-            drawStrFull(param->name);
+            #ifdef SAVE_DEBUG
+            Serial.printf("SAVE %s %s\n", c.name, param->name);
+            #endif
+            c.set(param->name, param->value);
 
             // Show on-screen which parameter is saving
             u8g2.clearBuffer();
@@ -314,12 +317,17 @@ void loopSave() {
             u8g2.drawStr(0, CH*3, param->name);
             u8g2.sendBuffer();
 
-            return; // sent serial data, so cannot send anything else this loop
+            // Sent serial data, so cannot send anything else this loop
+            // Must wait for serial data to be received first
+            goto out;
         }
     }
 
     // All changes saved correctly, go to home menu
     onSwitchButton();
+
+    out:
+    return;
 }
 
 void loopValueRefresh() {
@@ -366,7 +374,7 @@ void loop() {
 
     if (menu == MENU_SAVING) {
         loopSave();
-        return; // don't loop buttons or refresh values
+        return; // don't loop buttons (so user can't exit save menu) or refresh values (to keep serial line free)
     }
 
     loopButtons();

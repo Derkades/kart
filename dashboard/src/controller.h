@@ -4,6 +4,8 @@
 #include "config.h"
 #include "params.h"
 
+#define CONTROL_SERIAL_RECV_BUF_SIZE 64
+
 class Controller {
     public:
         Controller(const char *name, uint32_t rx, uint32_t tx) : serial(rx, tx), name{name} {}
@@ -63,7 +65,9 @@ class Controller {
 
             // Does this line contains a value reponse?
             if (strstr(buf, "# name:") == NULL) {
+                #ifdef CONTROL_SERIAL_RX_DEBUG
                 Serial.printf("RX %s ignore: %s\n", this->name, buf);
+                #endif
                 return;
             }
 
@@ -121,40 +125,25 @@ class Controller {
 
     private:
         void processResponse(char *name, int16_t value) {
-            for (param *p2 : this->params) {
-                Serial.printf("testloop %s\n", p2->name);
-                break;
-            }
-
             // See if received name is a parameter
-            param *p = NULL;
 
-            for (param *tryParam : this->params) {
-                if (strcmp(tryParam->name, name) == 0) {
-                    p = tryParam;
-                    return;
-                }
+            for (param *p : this->params) {
+                if (strcmp(p->name, name) == 0) {
+                    if (p->value != value) {
+                        #ifdef CONTROL_SERIAL_RX_DEBUG
+                        Serial.printf("RX %s %s val %i not match %i\n", this->name, name, value, p->value);
+                        #endif
+                        return;
+                    }
 
-                #ifdef CONTROL_SERIAL_RX_DEBUG
-                Serial.printf("RX %s %s not match %s\n", this->name, tryParam->name, name);
-                #endif
-            }
+                    // Correct value is set, parameter is no longer dirty
+                    p->dirty = false;
 
-            if (p) {
-                if (p->value != value) {
                     #ifdef CONTROL_SERIAL_RX_DEBUG
-                    Serial.printf("RX %s %s val %i not match %i\n", this->name, name, value, p->value);
+                    Serial.printf("RX %s %s OK dirty=>false\n", this->name, p->name);
                     #endif
                     return;
                 }
-
-                // Correct value is set, parameter is no longer dirty
-                p->dirty = false;
-
-                #ifdef CONTROL_SERIAL_RX_DEBUG
-                Serial.printf("RX %s %s OK\n", this->name, p->name);
-                #endif
-                return;
             }
 
             // Otherwise maybe a variable
@@ -166,13 +155,13 @@ class Controller {
                 this->feedbackBATV = value;
             } else {
                 // Unknown name
-                Serial.printf("RX %s %s unknown\n", this->name, name);
+                Serial.printf("RX %s unknown name: %s\n", this->name, name);
             }
         }
 
         void sendCommand(char *command) {
             #ifdef CONTROL_SERIAL_TX_DEBUG
-            Serial.printf("TX %s: %s\n", this->name, command);
+            Serial.printf("TX %s: %s", this->name, command);
             #endif
 
             this->serial.write(command);
