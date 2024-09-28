@@ -16,6 +16,7 @@
 #define CONTROL_SERIAL_WORKING_TIMEOUT_MS 30000 // TODO lower when it works
 
 // Menu parameters
+// #define ENABLE_SETTINGS
 #define SAVE_DEBUG
 #define SAVE_INTERVAL 2000 // TODO lower when it works
 #define HOME_REFRESH_INTERVAL 200 // TODO lower when it works

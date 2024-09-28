@@ -76,6 +76,7 @@ static void drawHome() {
     u8g2.sendBuffer();
 }
 
+#ifdef ENABLE_SETTINGS
 void drawDrive() {
     u8g2.clearBuffer();
     drawSettingHeader("drive");
@@ -198,6 +199,7 @@ void drawSaving() {
     // Later, the save loop will add more information about which parameter is saving
     u8g2.sendBuffer();
 }
+#endif
 
 void onSwitchButton() {
     menu = (Menu) ((int) (menu + 1) % MENU_COUNT);
@@ -206,6 +208,7 @@ void onSwitchButton() {
         case MENU_HOME:
             drawHome();
             break;
+        #ifdef ENABLE_SETTINGS
         case MENU_DRIVE:
             drawDrive();
             break;
@@ -221,12 +224,14 @@ void onSwitchButton() {
         case MENU_SAVING:
             drawSaving();
             break;
+        #endif
         default:
             Serial.println("error");
     }
 }
 
 void onActionButton() {
+    #ifdef ENABLE_SETTINGS
     switch(menu) {
         case MENU_DRIVE:
             actionDrive();
@@ -243,6 +248,7 @@ void onActionButton() {
         default:
             Serial.println("no action");
     }
+    #endif
 }
 
 void setup(void) {
@@ -372,10 +378,12 @@ void loop() {
     cF.recv();
     cR.recv();
 
+    #ifdef ENABLE_SETTINGS
     if (menu == MENU_SAVING) {
         loopSave();
         return; // don't loop buttons (so user can't exit save menu) or refresh values (to keep serial line free)
     }
+    #endif
 
     loopButtons();
 
