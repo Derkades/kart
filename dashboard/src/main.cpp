@@ -334,22 +334,22 @@ void loopValueRefresh() {
     lastRefresh = millis();
     switch(lastRefreshCommand) {
         case 0:
-            get(cR, V_SPD_AVG, &cR.feedbackSPD_AVG);
+            cR.get(V_SPD_AVG);
             break;
         case 1:
-            get(cR, V_DC_CURR, &cR.feedbackDC_CURR);
+            cR.get(V_DC_CURR);
             break;
         case 2:
-            get(cR, V_BATV, &cR.feedbackBATV);
+            cR.get(V_BATV);
             break;
         case 3:
-            get(cF, V_SPD_AVG, &cF.feedbackSPD_AVG);
+            cF.get(V_SPD_AVG);
             break;
         case 4:
-            get(cF, V_DC_CURR, &cF.feedbackDC_CURR);
+            cF.get(V_DC_CURR);
             break;
         case 5:
-            get(cF, V_BATV, &cF.feedbackBATV);
+            cF.get(V_BATV);
             break;
     }
     lastRefreshCommand = (lastRefreshCommand + 1) % 6;
@@ -361,8 +361,8 @@ void loopValueRefresh() {
 
 void loop() {
     // Receive serial data from controllers
-    recv(cF);
-    recv(cR);
+    cF.recv();
+    cR.recv();
 
     if (menu == MENU_SAVING) {
         loopSave();

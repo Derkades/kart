@@ -17,7 +17,6 @@ class Controller {
         int16_t feedbackDC_CURR; // total DC link current A * 100
 
         // Values must match default values in hoverboard controllers
-
         param pCtrlTyp = {false, P_CTRL_TYP, CTRL_TYP_SIN}; // COM, SIN, FOC
         param pCtrlMod = {false, P_CTRL_MOD, CTRL_MOD_VLT}; // VLT, SPD, TRQ
         param pIMotMax = {false, P_I_MOT_MAX, 15}; // Maximum motor current
@@ -27,6 +26,13 @@ class Controller {
         param *params[5] = {&pCtrlTyp, &pIMotMax, &pFiWeakEna, &pFiWeakMax, &pPhaAdvMax};
 
         bool working();
+        void recv();
+        void set(const char *param, const int16_t value);
+        void get(const char *param);
+
+    private:
+        void processResponse(char *name, int16_t value);
+        void sendCommand(char *command);
 };
 
 #endif

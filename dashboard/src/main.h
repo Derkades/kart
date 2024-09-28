@@ -4,7 +4,6 @@
 
 #include "screen.h"
 #include "config.h"
-#include "comms.h"
 #include "controller.h"
 
 enum Menu {
