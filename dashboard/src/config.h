@@ -1,3 +1,5 @@
+#pragma once
+
 // Vehicle parameters
 #define WHEEL_CIRCUMFERENCE_MM 603
 #define BAT_VOLT_EMPTY 3.3 * 12

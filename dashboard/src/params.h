@@ -1,6 +1,4 @@
-#ifndef PARAMS_H
-#define PARAMS_H
-
+#pragma once
 #include <Arduino.h>
 
 // https://github.com/EFeru/hoverboard-firmware-hack-FOC/wiki/Debug-Serial
@@ -38,5 +36,3 @@ inline void param_set(param &p, int16_t value) {
 inline int16_t param_get(const param &p) {
     return p.value;
 }
-
-#endif

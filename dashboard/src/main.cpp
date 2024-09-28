@@ -5,8 +5,8 @@ Bounce2::Button actionButton = Bounce2::Button();
 
 static Menu menu = (Menu) ((int) MENU_COUNT - 1); // initial state last menu means first menu is actual first state
 
-static Controller cF("front", PA3, PA2); // front motor controller, USART2
-static Controller cR("rear", PA10, PA9); // rear motor controller, USART1
+Controller cF("front", PA3, PA2); // front motor controller, USART2
+Controller cR("rear", PA10, PA9); // rear motor controller, USART1
 
 static int16_t avgFeedbackRpm() {
     if (cR.working() && cF.working()) {

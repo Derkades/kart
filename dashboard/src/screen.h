@@ -1,5 +1,4 @@
-#ifndef SCREEN_H
-#define SCREEN_H
+#pragma once
 
 #include <U8g2lib.h>
 
@@ -20,5 +19,3 @@ extern void drawSettingHeader(const char *text);
 extern void drawStrCentered(u8g2_uint_t y, const char *text);
 
 extern void drawStrFull(const char *text);
-
-#endif
