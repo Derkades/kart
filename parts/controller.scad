@@ -22,5 +22,5 @@ difference() {
     cuboid([100, height+2*t, 20], anchor=BOTTOM);
     
     up(depth)
-    #cuboid([width, height, 10], anchor=BOTTOM);
+    cuboid([width, height, 10], anchor=BOTTOM);
 }
