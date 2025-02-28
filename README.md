@@ -10,21 +10,4 @@ Receives analog signal from acceleration/deceleration pedals (or rather, forward
 
 ## Hoverboard
 
-Motor controllers (2x). Can be compiled and flashed using the Makefile or PlatformIO.
-
-Initialize submodule:
-```
-git submodule update --init
-```
-
-To apply changes to the submodule:
-```
-./hoverboard-patch-apply.sh
-```
-
-To save changes to the submodule, to a patch file in this repository:
-```
-./hoverboard-patch-create.sh
-git add hoverboard.patch
-git commit
-```
+Motor controllers (2x). For firmware see https://codeberg.org/raphson/hoverboard
